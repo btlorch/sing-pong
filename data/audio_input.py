@@ -6,6 +6,7 @@
 # run until Ctrl+C is pressed.
 import typing
 from typing import Tuple
+import ctypes
 import time
 import os
 import pyaudio
@@ -21,7 +22,7 @@ class PitchDetector():
         self.stream = stream
 
         # setup pitch
-        self.tolerance = 0.8
+        self.tolerance = 0.7
         self.win_s = 4096  # fft size
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
         self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s, self.stream._rate)
@@ -29,7 +30,7 @@ class PitchDetector():
         self.pitch_o.set_tolerance(self.tolerance)
 
     def get_pitch_confidence_tuple(self) -> Tuple[float, float]:
-        self.audiobuffer = self.stream.read(self.buffer_size)
+        self.audiobuffer = self.stream.read(self.buffer_size, exception_on_overflow=False)
         signal = np.fromstring(self.audiobuffer, dtype=np.float32)
 
         pitch = self.pitch_o(signal)[0]
@@ -52,7 +53,7 @@ class PitchDetectorFactory():
         self.streams = set()
 
         # open stream
-        self.buffer_size = 1024
+        self.buffer_size = 1024 * 4
         self.pyaudio_format = pyaudio.paFloat32
         self.n_channels = 1
         self.samplerate = 44100
@@ -73,7 +74,8 @@ class PitchDetectorFactory():
 
     def cleanup(self):
         for s in self.streams:
-            s.cleanup()
+            s.stop_stream()
+            s.close()
 
 
 class MicController():
@@ -109,46 +111,29 @@ class MicController():
 process_running = False
 num_detectors = 1
 min_confidence = 0.8
-child_inbox = multiprocessing.Queue()
-parent_inbox = multiprocessing.Queue()
+child_running = multiprocessing.Value(ctypes.c_bool)
+norm_pitch = multiprocessing.Value(ctypes.c_double)
 
 
-def process_normalized_positions(child_inbox, parent_inbox, num_detectors, min_confidence=0.8):
+def process_normalized_positions(child_running, norm_pitch, num_detectors, min_confidence=0.8):
     # Declare factory
     pd_factory = PitchDetectorFactory()
     mic_controller = MicController(pd_factory, min_confidence)
-    run = True
-    while run:
-        if not child_inbox.empty():
-            m = child_inbox.get()
-            if m == "die":
-                run = False
-
+    while child_running.value:
         latest_pos = mic_controller.get_normalized_position()
-        parent_inbox.put(latest_pos)
-
-        time.sleep(0.0005)
+        norm_pitch.value = latest_pos
+        time.sleep(0.01)
 
     mic_controller.cleanup()
     pd_factory.cleanup()
 
 
 def get_normalized_position(detector_index=0) -> float:
-    global parent_inbox
-    latest_pitch = None
-    try:
-        if parent_inbox.empty():
-            return latest_pitch
-
-        while not parent_inbox.empty():
-            latest_pitch = parent_inbox.get()
-    except Exception as e:
-        print("Exception during interaction with shared_queue: ", e)
-
-    return latest_pitch
+    global norm_pitch
+    return norm_pitch.value
 
 
-child_process = multiprocessing.Process(target=process_normalized_positions, args=(child_inbox, parent_inbox, num_detectors, min_confidence, ))
+child_process = multiprocessing.Process(target=process_normalized_positions, args=(child_running, norm_pitch, num_detectors, min_confidence, ))
 
 
 def initialize_child_process(min_confidence_arg=0.8):
@@ -156,20 +141,18 @@ def initialize_child_process(min_confidence_arg=0.8):
     global process_running
     global child_process
     min_confidence = min_confidence_arg
-    if not process_running:
-        process_running = True
+    if not child_running.value:
+        child_running.value = True
         child_process.start()
 
 
 def cleanup():
     global process_running
     global child_process
-    global child_inbox
-    if process_running:
-        child_inbox.put("die")
+    global child_running
+    if child_running.value:
+        child_running.value = False
         child_process.join(timeout=3)
-        with child_process.errorcode as ec:
-            if ec and ec < 0:
-                child_process.terminate()
-        process_running = False
-                
+        # with child_process.exitcode as ec:
+        #     if ec and ec < 0: 
+        child_process.terminate()

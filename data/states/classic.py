@@ -40,7 +40,7 @@ class Classic(tools.States):
 
         self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
 
-        audio_input.initialize_child_process(min_confidence_arg=0.5)
+        audio_input.initialize_child_process(min_confidence_arg=0.2)
         #self.mic_controller = audio_input.MicController(min_confidence=0.5)
 
     def reset(self):
