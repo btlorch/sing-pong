@@ -22,7 +22,7 @@ class PitchDetector():
         self.stream = stream
 
         # setup pitch
-        self.tolerance = 0.7
+        self.tolerance = 0.4
         self.win_s = 4096  # fft size
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
         self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s, self.stream._rate)
@@ -86,8 +86,8 @@ class MicController():
         # min and max pitches are adjusted by input.
         # TODO -- if wacky values are encountered, create self correcting scheme over time.
         # (pitch value, age value) <-- negative age value means forever
-        self.min_pitch = 30.0
-        self.max_pitch = 70.0
+        self.min_pitch = 40.0
+        self.max_pitch = 60.0
         self.latest_pitch = self.min_pitch
 
     def get_normalized_position(self) -> float:

@@ -1,20 +1,25 @@
-
 import pygame as pg
 
+
 class Paddle:
-    def __init__(self, x, y, width, height, color=(255,255,255)):
+    def __init__(self, x, y, width, height, speed, color=(255, 255, 255)):
         self.surface = pg.Surface([width, height])
         self.rect = self.surface.get_rect()
         self.rect.x = x
         self.rect.y = y
         self.color = color
         self.surface.fill(self.color)
-        self.speed = 6
-        
-    def move(self, x, y):
-        self.rect[0] += x * self.speed
-        self.rect[1] += y * self.speed
-        
+        self.speed = speed
+
+    def move(self, x, y, time_delta):
+        self.rect[0] += x * self.speed * time_delta
+        self.rect[1] += y * self.speed * time_delta
+
+    def move_to_y(self, desired_y, time_delta):
+        if abs(self.rect.y - desired_y) >= 2:
+            direction = 1 if desired_y > self.rect.y else -1
+            self.move(0, direction, time_delta)
+
     def update(self, screen_rect):
         self.rect.clamp_ip(screen_rect)
 

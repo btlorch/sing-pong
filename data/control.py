@@ -1,7 +1,7 @@
-
 import os
 import pygame as pg
 from .states import classic, menu, mode, options, controls, audio, ghost, splash, keybinding, getkey
+
 
 class Control():
     def __init__(self, fullscreen, difficulty, size):
@@ -22,26 +22,25 @@ class Control():
         self.keys = pg.key.get_pressed()
         self.done = False
         self.state_dict = {
-            "MENU"     : menu.Menu(self.screen_rect),
-            "CLASSIC"  : classic.Classic(self.screen_rect, difficulty),
-            "CONTROLS" : controls.Controls(self.screen_rect),
-            "MODE"     : mode.Mode(self.screen_rect),
-            "OPTIONS"  : options.Options(self.screen_rect),
-            "AUDIO"    : audio.Audio(self.screen_rect),
-            "BALLS"    : ghost.Ghost(self.screen_rect, difficulty),
-            "SPLASH"   : splash.Splash(self.screen_rect),
-            "KEYBINDING" : keybinding.KeyBinding(self.screen_rect),
-            "GETKEY"   : getkey.GetKey(self.screen_rect)
+            "MENU": menu.Menu(self.screen_rect),
+            "CLASSIC": classic.Classic(self.screen_rect, difficulty),
+            "CONTROLS": controls.Controls(self.screen_rect),
+            "MODE": mode.Mode(self.screen_rect),
+            "OPTIONS": options.Options(self.screen_rect),
+            "AUDIO": audio.Audio(self.screen_rect),
+            "BALLS": ghost.Ghost(self.screen_rect, difficulty),
+            "SPLASH": splash.Splash(self.screen_rect),
+            "KEYBINDING": keybinding.KeyBinding(self.screen_rect),
+            "GETKEY": getkey.GetKey(self.screen_rect)
         }
         self.state_name = "SPLASH"
         self.state = self.state_dict[self.state_name]
-        
 
     def event_loop(self):
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.quit = True
-            elif event.type in (pg.KEYDOWN,pg.KEYUP):
+            elif event.type in (pg.KEYDOWN, pg.KEYUP):
                 self.keys = pg.key.get_pressed()
             self.state.get_event(event, self.keys)
 
@@ -52,18 +51,15 @@ class Control():
             self.state.done = False
             self.state = self.state_dict[self.state_name]
             self.state.entry()
-            
 
     def run(self):
         while not self.done:
             if self.state.quit:
                 self.done = True
-            now = pg.time.get_ticks()
+            time_delta = self.clock.get_time()
             self.event_loop()
             self.change_state()
-            self.state.update(now, self.keys)
+            self.state.update(time_delta, self.keys)
             self.state.render(self.screen)
             pg.display.update()
             self.clock.tick(self.fps)
-
-

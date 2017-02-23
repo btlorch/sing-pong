@@ -29,19 +29,20 @@ class Classic(tools.States):
         paddle_width = 10
         paddle_height = 100
         paddle_y = self.screen_rect.centery - (paddle_height // 2)
+        paddle_speed = 2.0
         padding = 25  #padding from wall
         pad_right = screen_rect.width - paddle_width - padding
 
         self.ball = ball_.Ball(self.screen_rect, 10, 10, (0, 255, 0))
         self.paddle_left = paddle.Paddle(padding, paddle_y, paddle_width,
-                                         paddle_height, (150, 150, 150))
+                                         paddle_height, paddle_speed, (150, 150, 150))
         self.paddle_right = paddle.Paddle(pad_right, paddle_y, paddle_width,
-                                          paddle_height, (150, 150, 150))
+                                          paddle_height, paddle_speed, (150, 150, 150))
 
         self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
-
+        
+        self.desired_y_pos = (screen_rect.bottom - screen_rect.top) / 2
         audio_input.initialize_child_process(min_confidence_arg=0.2)
-        #self.mic_controller = audio_input.MicController(min_confidence=0.5)
 
     def reset(self):
         self.pause = False
@@ -67,11 +68,11 @@ class Classic(tools.States):
                 self.background_music.tracks[self.background_music.track])
             pg.mixer.music.play()
 
-    def movement(self, keys):
+    def movement(self, keys, time_delta):
         if self.ai.move_up:
-            self.paddle_left.move(0, -1)
+            self.paddle_left.move(0, -1, time_delta)
         if self.ai.move_down:
-            self.paddle_left.move(0, 1)
+            self.paddle_left.move(0, 1, time_delta)
 
         #temp fix for keys until prefecting key bindings
         #if keys[self.controller_dict['up']]:
@@ -79,16 +80,8 @@ class Classic(tools.States):
             self.paddle_right.move(0, -1)
         elif keys[pg.K_DOWN] or keys[pg.K_s]:
             self.paddle_right.move(0, 1)
-        else:
-            # Top is 0, bottom grows larger. Invert the incoming pitch
-            norm_pitch = audio_input.get_normalized_position()
-            print("Norm pitch received: ", norm_pitch)
-            if norm_pitch and norm_pitch > 0:
-                max_p = self.screen_rect.bottom
-                abs_pos = (1.0 - norm_pitch) * max_p
-                self.paddle_right.update_vertical_position(abs_pos)
 
-    def update(self, now, keys):
+    def update(self, time_delta, keys):
         if not self.pause:
             self.ai.update(self.ball.rect, self.ball, self.paddle_left.rect)
             self.score_text, self.score_rect = self.make_text(
@@ -100,7 +93,18 @@ class Classic(tools.States):
                                         self.paddle_right.rect)
             if hit_side:
                 self.adjust_score(hit_side)
-            self.movement(keys)
+            self.movement(keys, time_delta)
+
+            # Top is 0, bottom grows larger. Invert the incoming pitch
+            norm_pitch = audio_input.get_normalized_position()
+            if norm_pitch and norm_pitch > 0:
+                max_p = self.screen_rect.bottom
+                abs_pos = (1.0 - norm_pitch) * max_p
+                self.desired_y_pos = abs_pos
+
+            self.paddle_right.move_to_y(self.desired_y_pos, time_delta)
+
+
         else:
             self.pause_text, self.pause_rect = self.make_text(
                 "PAUSED", (255, 255, 255), self.screen_rect.center, 50)
