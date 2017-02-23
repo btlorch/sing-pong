@@ -92,10 +92,10 @@ class MicController():
 
     def get_normalized_position(self) -> float:
         raw_pitch, confidence = self.pitch_detector.get_pitch_confidence_tuple()
-        print("p, c: ", raw_pitch, confidence)
         if confidence < self.min_confidence:
             return -1.0
 
+        print("p, c: ", raw_pitch, confidence)
         # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
         self.min_pitch = min(raw_pitch, self.min_pitch)
         self.max_pitch = max(raw_pitch, self.max_pitch)

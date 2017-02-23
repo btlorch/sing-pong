@@ -56,7 +56,7 @@ class Control():
         while not self.done:
             if self.state.quit:
                 self.done = True
-            time_delta = self.clock.get_time()
+            time_delta = float(self.clock.get_time()) / 1000
             self.event_loop()
             self.change_state()
             self.state.update(time_delta, self.keys)
