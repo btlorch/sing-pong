@@ -1,4 +1,8 @@
-[![Logo](http://i.imgur.com/FGIpYW6.png)](http://i.imgur.com)
+
+## Notes
+
+* Only works on linux and maybe OS X
+
 #
 http://pygame.org/project-Pong-2878-4685.html
 

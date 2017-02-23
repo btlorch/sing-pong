@@ -17,6 +17,9 @@ class Paddle:
         
     def update(self, screen_rect):
         self.rect.clamp_ip(screen_rect)
-        
+
+    def update_vertical_position(self, y):
+        self.rect.y = y
+
     def render(self, screen):
         screen.blit(self.surface, self.rect)
