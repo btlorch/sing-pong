@@ -25,7 +25,7 @@ class PitchDetector():
         self.stream = stream
 
         # setup pitch
-        self.tolerance = 0.8
+        self.tolerance = 0.5
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
         self.win_s = self.buffer_size  # 4096  # fft size
         self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s,
@@ -103,13 +103,14 @@ class MicController():
 
         # min and max pitches are adjusted by input.
         self.min_pitch = 40.0
-        self.max_pitch = 60.0
+        self.max_pitch = 65.0
 
         self.pitch_cache_list = llist.dllist()
         self.size_limit = 4
         self.range_shrink_speed = 5
         self.range_shrink_interval = 1  # seconds
         self.last_shrink_time = time.clock()
+        self.audio_input_index = audio_input_index
 
     def shrink_range(self):
         current_time = time.clock()
@@ -122,7 +123,8 @@ class MicController():
         raw_pitch, confidence = self.pitch_detector.get_pitch_confidence_tuple()
         norm_pitch = 0
         if confidence > self.min_confidence:
-            print("p, c: ", raw_pitch, confidence)
+            print("Mic ", self.audio_input_index,
+                  ", pitch: ", raw_pitch, ", confidence: ", confidence)
             # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
             self.min_pitch = min(raw_pitch, self.min_pitch)
             self.max_pitch = max(raw_pitch, self.max_pitch)
@@ -130,7 +132,7 @@ class MicController():
             self.pitch_cache_list.appendleft(raw_pitch)
             if self.pitch_cache_list.size >= self.size_limit:
                 self.pitch_cache_list.popright()
-
+        
         if self.pitch_cache_list.size == 0:
             return -1
 
@@ -146,7 +148,7 @@ class MicController():
 
 # Multiprocess
 process_running = False
-min_confidence = 0.8
+min_confidence = 0.5
 child_running = multiprocessing.Value(ctypes.c_bool)
 norm_pitch1 = multiprocessing.Value(ctypes.c_double)
 norm_pitch2 = multiprocessing.Value(ctypes.c_double)

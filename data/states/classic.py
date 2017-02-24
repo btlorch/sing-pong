@@ -9,7 +9,6 @@ from .. import audio_input
 
 WINNING_SCORE = 9
 
-
 class Classic(tools.States):
     def __init__(self, screen_rect, difficulty, audio_input_index1,
                  audio_input_index2):
@@ -57,9 +56,12 @@ class Classic(tools.States):
         self.paddle_right.update_desired_y(
             (screen_rect.bottom - screen_rect.top) / 2)
 
+        self.paddle_left.update_desired_y(
+            (screen_rect.bottom - screen_rect.top) / 2)
+
         (self.audio_input_index1,
          self.audio_input_index2) = audio_input.initialize_child_process(
-             audio_input_index1, audio_input_index2, min_confidence_arg=0.2)
+             audio_input_index1, audio_input_index2, min_confidence_arg=0.7)
 
     def process_audio_input(self, device_index):
         # Process audio input
@@ -68,6 +70,7 @@ class Classic(tools.States):
         if norm_pitch and norm_pitch > 0:
             max_p = self.screen_rect.bottom
             abs_pos = (1.0 - norm_pitch) * max_p
+#            print("Mic: ", device_index, ", abs pos: ", abs_pos, ", norm_pitch: ", norm_pitch)
             return abs_pos
 
         return None
@@ -137,13 +140,13 @@ class Classic(tools.States):
             self.movement(keys, time_delta)
 
             if self.num_players == 2:
-                pos = self.process_audio_input(self.audio_input_index2)
-                if pos:
-                    self.paddle_left.update_desired_y(pos)
+                lpos = self.process_audio_input(self.audio_input_index2)
+                if lpos:
+                    self.paddle_left.update_desired_y(lpos)
 
-            pos = self.process_audio_input(self.audio_input_index1)
-            if pos:
-                self.paddle_right.update_desired_y(pos)
+            rpos = self.process_audio_input(self.audio_input_index1)
+            if rpos:
+                self.paddle_right.update_desired_y(rpos)
 
             # Update the paddles positions
             self.paddle_right.update_pos(time_delta)
