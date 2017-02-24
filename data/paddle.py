@@ -10,30 +10,30 @@ class Paddle:
         self.color = color
         self.surface.fill(self.color)
         self.speed = speed
+        self.desired_y = y
 
-    def move(self, x, y, time_delta):
+    def _move(self, x, y, time_delta):
         # self.rect[0] += int(x *  time_delta)
         # self.rect[1] += int(y *  time_delta)
         self.rect[0] += x * self.speed * time_delta
         self.rect[1] += y * self.speed * time_delta
 
     def move_up(self, time_delta):
-        self.rect[0] += self.speed * time_delta
-        self.rect[1] += -1 * self.speed * time_delta
+        self.update_desired_y(self.desired_y + -1)
 
     def move_down(self, time_delta):
-        self.rect[0] += self.speed * time_delta
-        self.rect[1] += self.speed * time_delta
+        self.update_desired_y(self.desired_y + 1)
 
-    def move_to_y(self, desired_y, time_delta):
-        delta = desired_y - self.rect[1]
+    def update_desired_y(self, desired_y):
+        self.desired_y = desired_y
+
+    def update_pos(self, time_delta):
+        delta = self.desired_y - self.rect[1]
         if abs(delta) <= 4:
             return
-
         distance = 4
         direction = distance if delta >= 0 else -1 * distance
-        print("move to y -> move ", direction)
-        self.move(0, direction, time_delta)
+        self._move(0, direction, time_delta)
 
     def update(self, screen_rect):
         self.rect.clamp_ip(screen_rect)

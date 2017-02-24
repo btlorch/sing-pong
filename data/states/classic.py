@@ -46,7 +46,7 @@ class Classic(tools.States):
 
         self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
 
-        self.desired_y_pos = (screen_rect.bottom - screen_rect.top) / 2
+        self.paddle_right.update_desired_y((screen_rect.bottom - screen_rect.top) / 2)
         audio_input.initialize_child_process(min_confidence_arg=0.2)
 
     def reset(self):
@@ -75,19 +75,18 @@ class Classic(tools.States):
 
     def movement(self, keys, time_delta) -> bool:
         if self.ai.move_up:
-            self.paddle_left.move(0, -1, time_delta)
+            self.paddle_left.move_up(time_delta)
         if self.ai.move_down:
-            self.paddle_left.move(0, 1, time_delta)
+            self.paddle_left.move_down(time_delta)
 
         moved = False
         if keys[pg.K_UP] or keys[pg.K_w]:
-            self.paddle_right.move(0, -1, time_delta)
+            self.paddle_right.move_up(time_delta)
             moved = True
         if keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.paddle_right.move(0, 1, time_delta)
+            self.paddle_right.move_down(time_delta)
             moved = True
 
-        #self.desired_y_pos = self.paddle_right.rect.
         return moved
 
     def update(self, time_delta, keys):
@@ -116,11 +115,11 @@ class Classic(tools.States):
             if norm_pitch and norm_pitch > 0:
                 max_p = self.screen_rect.bottom
                 abs_pos = (1.0 - norm_pitch) * max_p
-                print( "New abs pos: ", abs_pos)
                 self.desired_y_pos = abs_pos
 
             if not self.movement(keys, time_delta):
-                self.paddle_right.move_to_y(self.desired_y_pos, time_delta)
+                self.paddle_right.update_pos(time_delta)
+            self.paddle_left.update_pos(time_delta)
 
         else:
             self.pause_text, self.pause_rect = self.make_text(
