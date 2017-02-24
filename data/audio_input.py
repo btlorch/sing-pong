@@ -102,8 +102,6 @@ class MicController():
             audio_input_index)
 
         # min and max pitches are adjusted by input.
-        # TODO -- if wacky values are encountered, create self correcting scheme over time.
-        # (pitch value, age value) <-- negative age value means forever
         self.min_pitch = 40.0
         self.max_pitch = 60.0
 

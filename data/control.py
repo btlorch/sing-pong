@@ -25,10 +25,10 @@ class Control():
         self.state_dict = {
             "MENU": menu.Menu(self.screen_rect),
             "CLASSIC": classic.Classic(self.screen_rect, difficulty, audio_input_index1, audio_input_index2),
-            "CONTROLS": controls.Controls(self.screen_rect),
+            # "CONTROLS": controls.Controls(self.screen_rect),
             "MODE": mode.Mode(self.screen_rect),
-            "OPTIONS": options.Options(self.screen_rect),
-            "AUDIO": audio.Audio(self.screen_rect),
+            # "OPTIONS": options.Options(self.screen_rect),
+            # "AUDIO": audio.Audio(self.screen_rect),
             # "BALLS": ghost.Ghost(self.screen_rect, difficulty),
             "SPLASH": splash.Splash(self.screen_rect),
             "KEYBINDING": keybinding.KeyBinding(self.screen_rect),
