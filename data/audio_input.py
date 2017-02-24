@@ -18,20 +18,19 @@ import aubio
 import llist
 
 DEBUG = os.getenv("DEBUG") or False
-
+PITCH_TOLERANCE = 0.7
 
 class PitchDetector():
     def __init__(self, stream):
         self.stream = stream
 
         # setup pitch
-        self.tolerance = 0.7
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
         self.win_s = self.buffer_size  # 4096  # fft size
         self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s,
                                    self.stream._rate)
         self.pitch_o.set_unit("midi")
-#        self.pitch_o.set_tolerance(self.tolerance)
+        self.pitch_o.set_tolerance(PITCH_TOLERANCE)
 
     def get_pitch_confidence_tuple(self) -> Tuple[float, float]:
         self.audiobuffer = self.stream.read(
@@ -106,7 +105,7 @@ class MicController():
         self.max_pitch = 65.0
 
         self.pitch_cache_list = llist.dllist()
-        self.cache_size_limit = 4
+        self.cache_size_limit = 3
         self.range_shrink_speed = 5
         self.range_shrink_interval = 1  # seconds
         self.last_shrink_time = time.clock()
@@ -139,6 +138,11 @@ class MicController():
         avg_raw_pitch = sum(self.pitch_cache_list) / self.pitch_cache_list.size
         norm_pitch = (avg_raw_pitch - self.min_pitch) / (
             self.max_pitch - self.min_pitch)
+        if norm_pitch > 1.0:
+            return 1
+        elif norm_pitch < 0.0:
+            return 0
+        
         return norm_pitch
 
     def cleanup(self):

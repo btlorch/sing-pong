@@ -7,7 +7,9 @@ from .. import tools
 from .. import AI
 from .. import audio_input
 
+MIN_PITCH_CONFIDENCE = 0.825
 WINNING_SCORE = 9
+BASE_PADDLE_SPEED = 200
 
 class Classic(tools.States):
     def __init__(self, screen_rect, difficulty, audio_input_index1,
@@ -35,7 +37,7 @@ class Classic(tools.States):
         paddle_width = 10
         paddle_height = 100
         paddle_y = self.screen_rect.centery - (paddle_height // 2)
-        paddle_speed = 200
+        paddle_speed = BASE_PADDLE_SPEED
         paddle_left_speed = paddle_speed if self.num_players == 2 else paddle_speed / 1.7
         padding = 25  # padding from wall
         pad_right = screen_rect.width - paddle_width - padding
@@ -61,7 +63,7 @@ class Classic(tools.States):
 
         (self.audio_input_index1,
          self.audio_input_index2) = audio_input.initialize_child_process(
-             audio_input_index1, audio_input_index2, min_confidence_arg=0.75)
+             audio_input_index1, audio_input_index2, min_confidence_arg=MIN_PITCH_CONFIDENCE)
 
     def process_audio_input(self, device_index):
         # Process audio input
