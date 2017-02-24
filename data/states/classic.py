@@ -79,15 +79,10 @@ class Classic(tools.States):
         if self.ai.move_down:
             self.paddle_left.move_down(time_delta)
 
-        moved = False
         if keys[pg.K_UP] or keys[pg.K_w]:
             self.paddle_right.move_up(time_delta)
-            moved = True
         if keys[pg.K_DOWN] or keys[pg.K_s]:
             self.paddle_right.move_down(time_delta)
-            moved = True
-
-        return moved
 
     def update(self, time_delta, keys):
         global WINNING_SCORE
@@ -97,6 +92,7 @@ class Classic(tools.States):
                 '{}:{}'.format(self.score[0], self.score[1]), (255, 255, 255),
                 (self.screen_rect.centerx, 25), 50)
 
+            # Keep the paddles inside the screen
             self.paddle_left.update(self.screen_rect)
             self.paddle_right.update(self.screen_rect)
 
@@ -115,10 +111,10 @@ class Classic(tools.States):
             if norm_pitch and norm_pitch > 0:
                 max_p = self.screen_rect.bottom
                 abs_pos = (1.0 - norm_pitch) * max_p
-                self.desired_y_pos = abs_pos
+                self.paddle_right.update_desired_y(abs_pos)
 
-            if not self.movement(keys, time_delta):
-                self.paddle_right.update_pos(time_delta)
+            self.movement(keys, time_delta)
+            self.paddle_right.update_pos(time_delta)
             self.paddle_left.update_pos(time_delta)
 
         else:
