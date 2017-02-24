@@ -11,7 +11,11 @@ WINNING_SCORE = 9
 
 
 class Classic(tools.States):
-    def __init__(self, screen_rect, difficulty):
+    def __init__(self, screen_rect, difficulty, audio_input_index1,
+                 audio_input_index2):
+        self.num_players = (2 if audio_input_index1 and audio_input_index2 else
+                            1)
+
         tools.States.__init__(self)
         self.screen_rect = screen_rect
         self.score_text, self.score_rect = self.make_text(
@@ -33,21 +37,40 @@ class Classic(tools.States):
         paddle_height = 100
         paddle_y = self.screen_rect.centery - (paddle_height // 2)
         paddle_speed = 200
+        paddle_left_speed = paddle_speed if self.num_players == 2 else paddle_speed / 1.7
         padding = 25  # padding from wall
         pad_right = screen_rect.width - paddle_width - padding
 
         self.ball = ball_.Ball(self.screen_rect, 10, 10, (0, 255, 0))
+
         self.paddle_left = paddle.Paddle(padding, paddle_y, paddle_width,
-                                         paddle_height, paddle_speed / 1.5,
+                                         paddle_height, paddle_left_speed,
                                          (150, 150, 150))
+
         self.paddle_right = paddle.Paddle(pad_right, paddle_y, paddle_width,
                                           paddle_height, paddle_speed,
                                           (150, 150, 150))
 
-        self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
+        if self.num_players == 1:
+            self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
 
-        self.paddle_right.update_desired_y((screen_rect.bottom - screen_rect.top) / 2)
-        audio_input.initialize_child_process(min_confidence_arg=0.2)
+        self.paddle_right.update_desired_y(
+            (screen_rect.bottom - screen_rect.top) / 2)
+
+        (self.audio_input_index1,
+         self.audio_input_index2) = audio_input.initialize_child_process(
+             audio_input_index1, audio_input_index2, min_confidence_arg=0.2)
+
+    def process_audio_input(self, device_index):
+        # Process audio input
+        # Top is 0, bottom grows larger. Invert the incoming pitch
+        norm_pitch = audio_input.get_normalized_position(device_index)
+        if norm_pitch and norm_pitch > 0:
+            max_p = self.screen_rect.bottom
+            abs_pos = (1.0 - norm_pitch) * max_p
+            return abs_pos
+
+        return None
 
     def reset(self):
         self.pause = False
@@ -74,10 +97,11 @@ class Classic(tools.States):
             pg.mixer.music.play()
 
     def movement(self, keys, time_delta) -> bool:
-        if self.ai.move_up:
-            self.paddle_left.move_up(time_delta)
-        if self.ai.move_down:
-            self.paddle_left.move_down(time_delta)
+        if self.num_players == 1:
+            if self.ai.move_up:
+                self.paddle_left.move_up(time_delta)
+            if self.ai.move_down:
+                self.paddle_left.move_down(time_delta)
 
         if keys[pg.K_UP] or keys[pg.K_w]:
             self.paddle_right.move_up(time_delta)
@@ -87,7 +111,11 @@ class Classic(tools.States):
     def update(self, time_delta, keys):
         global WINNING_SCORE
         if not self.pause:
-            self.ai.update(self.ball.rect, self.ball, self.paddle_left.rect)
+            # Update AI
+            if self.num_players == 1:
+                self.ai.update(self.ball.rect, self.ball,
+                               self.paddle_left.rect)
+
             self.score_text, self.score_rect = self.make_text(
                 '{}:{}'.format(self.score[0], self.score[1]), (255, 255, 255),
                 (self.screen_rect.centerx, 25), 50)
@@ -99,21 +127,25 @@ class Classic(tools.States):
             hit_side = self.ball.update(self.paddle_left.rect,
                                         self.paddle_right.rect)
 
+            # Adjust score. TODO - Do something interesting on winning
             if hit_side:
                 self.adjust_score(hit_side)
                 for i in range(0, len(self.score)):
                     if self.score[i] >= WINNING_SCORE:
                         pass
 
-            # Process audio input
-            # Top is 0, bottom grows larger. Invert the incoming pitch
-            norm_pitch = audio_input.get_normalized_position()
-            if norm_pitch and norm_pitch > 0:
-                max_p = self.screen_rect.bottom
-                abs_pos = (1.0 - norm_pitch) * max_p
-                self.paddle_right.update_desired_y(abs_pos)
-
             self.movement(keys, time_delta)
+
+            if self.num_players == 2:
+                pos = self.process_audio_input(self.audio_input_index2)
+                if pos:
+                    self.paddle_left.update_desired_y(pos)
+
+            pos = self.process_audio_input(self.audio_input_index1)
+            if pos:
+                self.paddle_right.update_desired_y(pos)
+
+            # Update the paddles positions
             self.paddle_right.update_pos(time_delta)
             self.paddle_left.update_pos(time_delta)
 
@@ -121,7 +153,9 @@ class Classic(tools.States):
             self.pause_text, self.pause_rect = self.make_text(
                 "PAUSED", (255, 255, 255), self.screen_rect.center, 50)
         pg.mouse.set_visible(False)
-        self.ai.reset()
+
+        if self.num_players == 1:
+            self.ai.reset()
 
     def render(self, screen):
         screen.fill(self.bg_color)
