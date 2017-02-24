@@ -30,9 +30,7 @@ class Paddle:
 
     def update_pos(self, time_delta):
         delta = self.desired_y - self.rect[1]
-#        print("Desired: ", self.desired_y, ", Actual: ", self.rect[1])
-        #print(self.rect)
-        if abs(delta) <= 2:
+        if abs(delta) <= 5:
             return
         distance = 4
         direction = distance if delta >= 0 else -1 * distance

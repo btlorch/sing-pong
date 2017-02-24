@@ -38,7 +38,7 @@ class Classic(tools.States):
 
         self.ball = ball_.Ball(self.screen_rect, 10, 10, (0, 255, 0))
         self.paddle_left = paddle.Paddle(padding, paddle_y, paddle_width,
-                                         paddle_height, paddle_speed,
+                                         paddle_height, paddle_speed / 1.5,
                                          (150, 150, 150))
         self.paddle_right = paddle.Paddle(pad_right, paddle_y, paddle_width,
                                           paddle_height, paddle_speed,

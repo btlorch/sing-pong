@@ -9,10 +9,13 @@ from typing import Tuple
 import ctypes
 import time
 import os
-import pyaudio
 import multiprocessing
+import functools
+
+import pyaudio
 import numpy as np
 import aubio
+import llist
 
 DEBUG = os.getenv("DEBUG") or True
 
@@ -25,12 +28,14 @@ class PitchDetector():
         self.tolerance = 0.4
         self.win_s = 4096  # fft size
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
-        self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s, self.stream._rate)
+        self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s,
+                                   self.stream._rate)
         self.pitch_o.set_unit("midi")
         self.pitch_o.set_tolerance(self.tolerance)
 
     def get_pitch_confidence_tuple(self) -> Tuple[float, float]:
-        self.audiobuffer = self.stream.read(self.buffer_size, exception_on_overflow=False)
+        self.audiobuffer = self.stream.read(
+            self.buffer_size, exception_on_overflow=False)
         signal = np.fromstring(self.audiobuffer, dtype=np.float32)
 
         pitch = self.pitch_o(signal)[0]
@@ -61,7 +66,7 @@ class PitchDetectorFactory():
     def get_input_device_infos(self):
         raise NotImplementedError()
 
-    def create_pitch_detector(self, device_index: int = None):
+    def create_pitch_detector(self, device_index: int=None):
         stream = \
             self.p_audio.open(input_device_index=device_index,
                               format=self.pyaudio_format,
@@ -88,19 +93,38 @@ class MicController():
         # (pitch value, age value) <-- negative age value means forever
         self.min_pitch = 40.0
         self.max_pitch = 60.0
-        self.latest_pitch = self.min_pitch
+        self.pitch_cache_list = llist.dllist()
+        self.size_limit = 4
+        self.range_shrink_speed = 5
+        self.range_shrink_interval = 1  # seconds
+        self.last_shrink_time = time.clock()
+
+    def shrink_range(self):
+        current_time = time.clock()
+        if current_time - self.last_shrink_time > 1.0:
+            self.min_pitch += self.range_shrink_speed
+            self.max_pitch -= self.range_shrink_speed
+            self.last_shrink_time = current_time
 
     def get_normalized_position(self) -> float:
         raw_pitch, confidence = self.pitch_detector.get_pitch_confidence_tuple()
-        if confidence < self.min_confidence:
-            return -1.0
+        norm_pitch = 0
+        if confidence > self.min_confidence:
+            print("p, c: ", raw_pitch, confidence)
+            # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
+            self.min_pitch = min(raw_pitch, self.min_pitch)
+            self.max_pitch = max(raw_pitch, self.max_pitch)
 
-        print("p, c: ", raw_pitch, confidence)
-        # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
-        self.min_pitch = min(raw_pitch, self.min_pitch)
-        self.max_pitch = max(raw_pitch, self.max_pitch)
+            self.pitch_cache_list.appendleft(raw_pitch)
+            if self.pitch_cache_list.size >= self.size_limit:
+                self.pitch_cache_list.popright()
 
-        return (raw_pitch - self.min_pitch) / (self.max_pitch - self.min_pitch)
+        if self.pitch_cache_list.size == 0:
+            return -1
+
+        avg_raw_pitch = sum(self.pitch_cache_list) / self.pitch_cache_list.size
+        norm_pitch = (avg_raw_pitch - self.min_pitch) / (self.max_pitch - self.min_pitch)
+        return norm_pitch
 
     def cleanup(self):
         self.run = False
@@ -115,7 +139,10 @@ child_running = multiprocessing.Value(ctypes.c_bool)
 norm_pitch = multiprocessing.Value(ctypes.c_double)
 
 
-def process_normalized_positions(child_running, norm_pitch, num_detectors, min_confidence=0.8):
+def process_normalized_positions(child_running,
+                                 norm_pitch,
+                                 num_detectors,
+                                 min_confidence=0.8):
     # Declare factory
     pd_factory = PitchDetectorFactory()
     mic_controller = MicController(pd_factory, min_confidence)
@@ -133,7 +160,9 @@ def get_normalized_position(detector_index=0) -> float:
     return norm_pitch.value
 
 
-child_process = multiprocessing.Process(target=process_normalized_positions, args=(child_running, norm_pitch, num_detectors, min_confidence, ))
+child_process = multiprocessing.Process(
+    target=process_normalized_positions,
+    args=(child_running, norm_pitch, num_detectors, min_confidence, ))
 
 
 def initialize_child_process(min_confidence_arg=0.8):
