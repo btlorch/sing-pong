@@ -126,8 +126,8 @@ class MicController():
             print("Mic ", self.audio_input_index,
                   ", pitch: ", raw_pitch, ", confidence: ", confidence)
             # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
-            self.min_pitch = min(raw_pitch, self.min_pitch)
-            self.max_pitch = max(raw_pitch, self.max_pitch)
+            # self.min_pitch = min(raw_pitch, self.min_pitch)
+            # self.max_pitch = max(raw_pitch, self.max_pitch)
 
             self.pitch_cache_list.appendleft(raw_pitch)
             if self.pitch_cache_list.size >= self.size_limit:
