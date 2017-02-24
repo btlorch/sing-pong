@@ -102,7 +102,7 @@ class MicController():
             audio_input_index)
 
         # min and max pitches are adjusted by input.
-        self.min_pitch = 40.0
+        self.min_pitch = 44.0
         self.max_pitch = 65.0
 
         self.pitch_cache_list = llist.dllist()
