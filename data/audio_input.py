@@ -25,13 +25,13 @@ class PitchDetector():
         self.stream = stream
 
         # setup pitch
-        self.tolerance = 0.5
+        self.tolerance = 0.7
         self.hop_s = self.buffer_size = self.stream._frames_per_buffer
         self.win_s = self.buffer_size  # 4096  # fft size
         self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s,
                                    self.stream._rate)
         self.pitch_o.set_unit("midi")
-        self.pitch_o.set_tolerance(self.tolerance)
+#        self.pitch_o.set_tolerance(self.tolerance)
 
     def get_pitch_confidence_tuple(self) -> Tuple[float, float]:
         self.audiobuffer = self.stream.read(
@@ -96,7 +96,7 @@ class MicController():
     def __init__(self,
                  pd_factory,
                  audio_input_index,
-                 min_confidence: float=0.8):
+                 min_confidence):
         self.min_confidence = min_confidence
         self.pitch_detector = pd_factory.create_pitch_detector(
             audio_input_index)
@@ -106,7 +106,7 @@ class MicController():
         self.max_pitch = 65.0
 
         self.pitch_cache_list = llist.dllist()
-        self.size_limit = 4
+        self.cache_size_limit = 4
         self.range_shrink_speed = 5
         self.range_shrink_interval = 1  # seconds
         self.last_shrink_time = time.clock()
@@ -130,7 +130,7 @@ class MicController():
             # self.max_pitch = max(raw_pitch, self.max_pitch)
 
             self.pitch_cache_list.appendleft(raw_pitch)
-            if self.pitch_cache_list.size >= self.size_limit:
+            if self.pitch_cache_list.size >= self.cache_size_limit:
                 self.pitch_cache_list.popright()
         
         if self.pitch_cache_list.size == 0:
@@ -148,7 +148,7 @@ class MicController():
 
 # Multiprocess
 process_running = False
-min_confidence = 0.5
+# min_confidence = 0.5
 child_running = multiprocessing.Value(ctypes.c_bool)
 norm_pitch1 = multiprocessing.Value(ctypes.c_double)
 norm_pitch2 = multiprocessing.Value(ctypes.c_double)
@@ -199,15 +199,14 @@ def get_normalized_position(detector_index=0):
 
 def initialize_child_process(audio_input_index1,
                              audio_input_index2,
-                             min_confidence_arg=0.8):
-    global min_confidence
+                             min_confidence_arg):
     global process_running
     global child_process
     global norm_pitches_map
     child_process = multiprocessing.Process(
         target=process_normalized_positions,
         args=(child_running, audio_input_index1,
-              audio_input_index2, min_confidence, ))
+              audio_input_index2, min_confidence_arg, ))
 
     min_confidence = min_confidence_arg
     if not child_running.value:

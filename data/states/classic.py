@@ -61,7 +61,7 @@ class Classic(tools.States):
 
         (self.audio_input_index1,
          self.audio_input_index2) = audio_input.initialize_child_process(
-             audio_input_index1, audio_input_index2, min_confidence_arg=0.95)
+             audio_input_index1, audio_input_index2, min_confidence_arg=0.75)
 
     def process_audio_input(self, device_index):
         # Process audio input
