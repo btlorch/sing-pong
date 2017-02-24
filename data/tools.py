@@ -111,14 +111,14 @@ class States:
                     break
                     
     def make_text(self,message,color,center,size):
-        font = Font.load('Megadeth.ttf', size)
+        font = Font.load('impact.ttf', size)
         text = font.render(message,True,color)
         rect = text.get_rect(center=center)
         return text,rect
         
     def pre_render_options(self):
-        font_deselect = Font.load('Megadeth.ttf', 50)
-        font_selected = Font.load('Megadeth.ttf', 75)
+        font_deselect = Font.load('impact.ttf', 50)
+        font_selected = Font.load('impact.ttf', 75)
 
         rendered_msg = {"des":[],"sel":[]}
         for option in self.options:

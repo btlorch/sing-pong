@@ -15,11 +15,10 @@ class Splash(tools.States):
         self.cover_alpha = 256
         self.alpha_step = 3
 
-        self.image = pg.image.load(
-            'resources/graphics/splash_page.png').convert_alpha()
-        text = ["A Game of Pongs", "Audio Pongs"]
+        self.image = pg.image.load('resources/graphics/splash_page.png').convert_alpha()
+        text = ["Don't look at this screen", "Don't look"]
         self.rendered_text = self.make_text_list("Fixedsys500c", 50, text,
-                                                 (0, 0, 0), 320, 50)
+                                                 (200, 230, 0), 320, 50)
 
     def make_text_list(self, font, size, strings, color, start_y, y_space):
         rendered_text = []
@@ -43,7 +42,7 @@ class Splash(tools.States):
             self.done = True
 
     def render(self, screen):
-        screen.blit(self.image, (0, 0))
+        #screen.blit(self.image, (0, 0))
         screen.blit(self.cover, (0, 0))
         for msg in self.rendered_text:
             screen.blit(*msg)
