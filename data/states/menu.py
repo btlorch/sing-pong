@@ -10,7 +10,7 @@ class Menu(tools.States):
         self.screen_rect = screen_rect
         self.options = ['Play', 'Quit']
         self.next_list = ['CLASSIC']
-        self.title, self.title_rect = self.make_text('Pitch Pong', (75, 75, 75), (
+        self.title, self.title_rect = self.make_text('Sing Pong', (75, 75, 75), (
             self.screen_rect.centerx, 75), 150)
         self.pre_render_options()
         self.from_bottom = 200
