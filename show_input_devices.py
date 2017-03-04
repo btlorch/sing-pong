@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import pyaudio
 
 p = pyaudio.PyAudio()
@@ -9,4 +11,4 @@ enumerated_device_names = list(
     enumerate([(i['name'], i['maxInputChannels']) for i in device_infos]))
 
 for e in enumerated_device_names:
-    print(e)
+    print("Device Index: {}, Name: {}, Max Input channels: {}".format(e[0], e[1][0], e[1][1]))

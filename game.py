@@ -40,7 +40,7 @@ parser.add_argument(
     nargs=1,
     default=None,
     metavar='int',
-    help="Audio input device index. For internal use.")
+    help="Audio input device index 1")
 
 parser.add_argument(
     '-2',
@@ -48,7 +48,7 @@ parser.add_argument(
     nargs=1,
     metavar='int',
     default=None,
-    help="Audio input device index. For internal use.")
+    help="Audio input device index 2")
 
 args = vars(parser.parse_args())
 
