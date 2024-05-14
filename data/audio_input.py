@@ -1,232 +1,108 @@
-### CODE taken from aubio python demo py_audio.py
-
-# Use pyaudio to open the microphone and run aubio.pitch on the stream of
-# incoming samples. If a filename is given as the first argument, it will
-# record 5 seconds of audio to this location. Otherwise, the script will
-# run until Ctrl+C is pressed.
-import typing
+from pygame._sdl2 import (
+    get_audio_device_names,
+    AudioDevice,
+    AUDIO_F32,
+    AUDIO_ALLOW_FORMAT_CHANGE,
+)
 from typing import Tuple
-import ctypes
-import time
-import os
 import multiprocessing
-import functools
-
-import pyaudio
+import ctypes
 import numpy as np
 import aubio
 import llist
+import time
 
-DEBUG = os.getenv("DEBUG") or False
-PITCH_TOLERANCE = 0.7
 
-class PitchDetector():
-    def __init__(self, stream):
-        self.stream = stream
-
-        # setup pitch
-        self.hop_s = self.buffer_size = self.stream._frames_per_buffer
-        self.win_s = self.buffer_size  # 4096  # fft size
-        self.pitch_o = aubio.pitch("default", self.win_s, self.hop_s,
-                                   self.stream._rate)
+class PitchDetector(object):
+    """
+    Estimate the pitch/fundamental frequency of an audio signal
+    """
+    def __init__(self, hop_size, sample_rate, pitch_tolerance=0.8):
+        # The hop size is the number of samples in between successive frames.
+        # The hop size should be smaller than the frame size, so that frames overlap.
+        self.pitch_o = aubio.pitch(method="yinfft", buf_size=4096, hop_size=hop_size, samplerate=sample_rate)
         self.pitch_o.set_unit("midi")
-        self.pitch_o.set_tolerance(PITCH_TOLERANCE)
+        self.pitch_o.set_tolerance(pitch_tolerance)
 
-    def get_pitch_confidence_tuple(self) -> Tuple[float, float]:
-        self.audiobuffer = self.stream.read(
-            self.buffer_size, exception_on_overflow=False)
-        signal = np.fromstring(self.audiobuffer, dtype=np.float32)
-
+    def get_pitch_confidence_tuple(self, signal) -> Tuple[float, float]:
         pitches = self.pitch_o(signal)
         pitch = pitches[0]
         confidence = self.pitch_o.get_confidence()
 
-        if DEBUG:
-            print("{} / {}".format(pitch, confidence))
+        # print("{} / {}".format(pitch, confidence))
 
-        return (pitch, confidence)
-
-    def cleanup(self):
-        self.stream.stop_stream()
-        self.stream.close()
+        return pitch, confidence
 
 
-class PitchDetectorFactory():
-    def __init__(self):
-        # initialise pyaudio
-        self.p_audio = pyaudio.PyAudio()
-        self.streams = set()
-
-    def get_input_device_infos(self):
-        raise NotImplementedError()
-
-    def create_pitch_detector(self, device_index):
-        # Get stream info
-        stream_info = None
-        if not device_index:
-            stream_info = self.p_audio.get_default_input_device_info()
-        else:
-            stream_info = self.p_audio.get_device_info_by_index(device_index)
-
-        # open stream
-        self.pyaudio_format = pyaudio.paFloat32
-        self.n_channels = 1  # stream_info["maxInputChannels"]
-        self.samplerate = stream_info["defaultSampleRate"]
-        self.buffer_size = 1024 * 4  # * self.n_channels
-        self.device_index = stream_info["index"]
-
-        stream = \
-            self.p_audio.open(input_device_index=self.device_index,
-                              format=self.pyaudio_format,
-                              channels=self.n_channels,
-                              rate=44100,
-                              input=True,
-                              frames_per_buffer=self.buffer_size)
-        self.streams.add(stream)
-        return PitchDetector(stream)
-
-    def cleanup(self):
-        for s in self.streams:
-            s.stop_stream()
-            s.close()
-
-
-class MicController():
-    def __init__(self,
-                 pd_factory,
-                 audio_input_index,
-                 min_confidence):
+class MicController(object):
+    def __init__(self, device_name, sample_rate, buffer_size, pitch_tolerance, min_confidence):
+        self.device_name = device_name
         self.min_confidence = min_confidence
-        self.pitch_detector = pd_factory.create_pitch_detector(
-            audio_input_index)
+
+        self.pitch_detector = PitchDetector(buffer_size, sample_rate, pitch_tolerance)
+        self.pitch = multiprocessing.Value(ctypes.c_double)
+        self.confidence = multiprocessing.Value(ctypes.c_double)
 
         # min and max pitches are adjusted by input.
-        self.min_pitch = 44.0
-        self.max_pitch = 65.0
+        self.min_pitch = 40.0
+        self.max_pitch = 60.0
 
         self.pitch_cache_list = llist.dllist()
-        self.cache_size_limit = 3
-        self.range_shrink_speed = 5
-        self.range_shrink_interval = 1  # seconds
-        self.last_shrink_time = time.clock()
-        self.audio_input_index = audio_input_index
+        self.cache_size_limit = 5
 
-    def shrink_range(self):
-        current_time = time.clock()
-        if current_time - self.last_shrink_time > 1.0:
-            self.min_pitch += self.range_shrink_speed
-            self.max_pitch -= self.range_shrink_speed
-            self.last_shrink_time = current_time
+        def callback(audio_device, audio_memory_view):
+            sound_chunk = bytes(audio_memory_view)
+            signal = np.frombuffer(sound_chunk, dtype=np.float32)
+
+            pitch, confidence = self.pitch_detector.get_pitch_confidence_tuple(signal)
+            self.pitch.value = pitch
+            self.confidence.value = confidence
+
+        # Set up audio device
+        self.audio_device = AudioDevice(
+            devicename=device_name,
+            iscapture=True,
+            frequency=sample_rate,
+            audioformat=AUDIO_F32,
+            numchannels=1,
+            chunksize=buffer_size,
+            allowed_changes=AUDIO_ALLOW_FORMAT_CHANGE,
+            callback=callback,
+        )
+
+        # Pause playback
+        self.audio_device.pause(0)
 
     def get_normalized_position(self) -> float:
-        raw_pitch, confidence = self.pitch_detector.get_pitch_confidence_tuple()
-        norm_pitch = 0
-        if confidence > self.min_confidence:
-            print("Mic ", self.audio_input_index,
-                  ", pitch: ", raw_pitch, ", confidence: ", confidence)
-            # normalize against a minimum and maximum pitch known in the last "age" seconds, each high and low are saved
-            # self.min_pitch = min(raw_pitch, self.min_pitch)
-            # self.max_pitch = max(raw_pitch, self.max_pitch)
+        raw_pitch = self.pitch.value
+        raw_confidence = self.confidence.value
 
+        if raw_pitch < self.min_pitch * 0.8:
+            # Too small, ignore
+            print("Pitch too low")
+            pass
+
+        elif raw_pitch > self.max_pitch * 1.2:
+            # Too high, ignore
+            print("Pitch too high")
+            pass
+
+        elif raw_confidence < self.min_confidence:
+            print("Low confidence")
+            pass
+
+        else:
             self.pitch_cache_list.appendleft(raw_pitch)
             if self.pitch_cache_list.size >= self.cache_size_limit:
                 self.pitch_cache_list.popright()
-        
+
         if self.pitch_cache_list.size == 0:
             return -1
 
         avg_raw_pitch = sum(self.pitch_cache_list) / self.pitch_cache_list.size
-        norm_pitch = (avg_raw_pitch - self.min_pitch) / (
-            self.max_pitch - self.min_pitch)
-        if norm_pitch > 1.0:
-            return 1
-        elif norm_pitch < 0.0:
-            return 0
-        
+        norm_pitch = (avg_raw_pitch - self.min_pitch) / (self.max_pitch - self.min_pitch)
+
+        print(f"Raw pitch: {raw_pitch}, normalized mean pitch: {norm_pitch}")
+        norm_pitch = np.clip(norm_pitch, 0, 1)
+
         return norm_pitch
-
-    def cleanup(self):
-        self.run = False
-        self.pitch_detector.cleanup()
-
-
-# Multiprocess
-process_running = False
-# min_confidence = 0.5
-child_running = multiprocessing.Value(ctypes.c_bool)
-norm_pitch1 = multiprocessing.Value(ctypes.c_double)
-norm_pitch2 = multiprocessing.Value(ctypes.c_double)
-child_process = None
-
-
-def process_normalized_positions(child_running, audio_input_index1, audio_input_index2, min_confidence):
-    global norm_pitch1
-    global norm_pitch2
-    # Declare factory
-    pd_factory = PitchDetectorFactory()
-    mic_controller1 = mic_controller2 = None
-
-    mic_controller1 = MicController(pd_factory, audio_input_index1,
-                                    min_confidence)
-    if audio_input_index2:
-        mic_controller2 = MicController(pd_factory, audio_input_index2,
-                                        min_confidence)
-
-    while child_running.value:
-        latest_pos = mic_controller1.get_normalized_position()
-        norm_pitch1.value = latest_pos
-
-        if audio_input_index2:
-            latest_pos = mic_controller2.get_normalized_position()
-            norm_pitch2.value = latest_pos
-
-        time.sleep(0.01)
-
-    if mic_controller1:
-        mic_controller1.cleanup()
-
-    if mic_controller2:
-        mic_controller2.cleanup()
-
-    pd_factory.cleanup()
-
-
-def get_normalized_position(detector_index=0):
-    global norm_pitch1
-    global norm_pitch2
-
-    if detector_index == 0:
-        return norm_pitch1.value
-    else:
-        return norm_pitch2.value
-
-
-def initialize_child_process(audio_input_index1,
-                             audio_input_index2,
-                             min_confidence_arg):
-    global process_running
-    global child_process
-    global norm_pitches_map
-    child_process = multiprocessing.Process(
-        target=process_normalized_positions,
-        args=(child_running, audio_input_index1,
-              audio_input_index2, min_confidence_arg, ))
-
-    min_confidence = min_confidence_arg
-    if not child_running.value:
-        child_running.value = True
-        child_process.start()
-
-    return (0, 1 if audio_input_index2 else None)
-
-
-def cleanup():
-    global process_running
-    global child_process
-    global child_running
-    if child_running.value:
-        child_running.value = False
-        child_process.join(timeout=3)
-        # with child_process.exitcode as ec:
-        #     if ec and ec < 0: 
-        child_process.terminate()

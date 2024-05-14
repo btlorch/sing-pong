@@ -30,31 +30,27 @@ parser.add_argument(
     '-s',
     '--size',
     nargs=2,
-    default=[1024,768],
+    default=[1024, 768],
     metavar=('WIDTH', 'HEIGHT'),
     help='set window size to WIDTH HEIGHT, defualt is 800 600')
 
 parser.add_argument(
     '-1',
-    '--audioinput1',
-    nargs=1,
-    default=None,
-    metavar='int',
-    help="Audio input device index 1")
+    '--audio_device_name_1',
+    type=str,
+    help="Audio device name of right player")
 
 parser.add_argument(
     '-2',
-    '--audioinput2',
-    nargs=1,
-    metavar='int',
-    default=None,
-    help="Audio input device index 2")
+    '--audio_device_name_2',
+    type=str,
+    help="(Optional): Audio device name of left player")
 
 args = vars(parser.parse_args())
 
 if __name__ == '__main__':
     accepted_difficulty = ['hard', 'medium', 'easy']
-    size = audio_input_index1 = audio_input_index2 = None
+    size = audio_device_name_1 = audio_device_name_2 = None
 
     if args['difficulty']:
         if args['difficulty'].lower() in accepted_difficulty:
@@ -69,19 +65,20 @@ if __name__ == '__main__':
         size = args['size']
         print('window size: {}'.format(size))
 
-    if args["audioinput1"]:
-        audio_input_index1 = int(args["audioinput1"][0])
-        print('audio input device index 1: ', audio_input_index1)
+    if args["audio_device_name_1"]:
+        audio_device_name_1 = args["audio_device_name_1"]
+        print('audio device name of right player: ', audio_device_name_1)
 
-    if args["audioinput2"]:
-        if not audio_input_index1:
+    if args["audio_device_name_1"]:
+        if not audio_device_name_1:
             print("Cannot initiate second audio input unless first has been specified.")
             exit(-1)
-        audio_input_index2 = int(args["audioinput2"][0])
-        print('audio input device index 2: ', audio_input_index2)
+        audio_device_name_2 = args["audio_device_name_2"]
+        print('audio device name of left player: ', audio_device_name_2)
 
     if args['clean']:
         data.tools.clean_files()
     else:
-        main(args['fullscreen'], difficulty, size, audio_input_index1, audio_input_index2)
+        main(args['fullscreen'], difficulty, size, audio_device_name_1, audio_device_name_2)
+
     pg.quit()

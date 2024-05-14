@@ -1,5 +1,6 @@
 from .control import Control
 
-def main(fullscreen, difficulty, size, audio_input_index1, audio_input_index2):
-    app = Control(fullscreen, difficulty, size, audio_input_index1, audio_input_index2)
+
+def main(fullscreen, difficulty, size, audio_device_name_1, audio_device_name_2):
+    app = Control(fullscreen, difficulty, size, audio_device_name_1, audio_device_name_2)
     app.run()

@@ -1,5 +1,3 @@
-import random
-import typing
 import pygame as pg
 from .. import ball as ball_
 from .. import paddle
@@ -11,25 +9,26 @@ MIN_PITCH_CONFIDENCE = 0.825
 WINNING_SCORE = 9
 BASE_PADDLE_SPEED = 200
 
-class Classic(tools.States):
-    def __init__(self, screen_rect, difficulty, audio_input_index1,
-                 audio_input_index2):
-        self.num_players = (2 if audio_input_index1 and audio_input_index2 else
-                            1)
 
+class Classic(tools.States):
+    def __init__(self, screen_rect, difficulty, audio_device_name_1, audio_device_name_2):
         tools.States.__init__(self)
+
+        # Select number of players
+        if audio_device_name_2 is not None:
+            self.num_players = 2
+        else:
+            self.num_players = 1
+
         self.screen_rect = screen_rect
-        self.score_text, self.score_rect = self.make_text(
-            "SCOREBOARD_PLACEHOLDER", (255, 255, 255),
-            (screen_rect.centerx, 100), 50)
-        self.pause_text, self.pause_rect = self.make_text(
-            "PAUSED", (255, 255, 255), screen_rect.center, 50)
+        self.score_text, self.score_rect = self.make_text("SCOREBOARD_PLACEHOLDER", (255, 255, 255), (screen_rect.centerx, 100), 50)
+        self.pause_text, self.pause_rect = self.make_text("PAUSED", (255, 255, 255), screen_rect.center, 50)
 
         self.cover = pg.Surface((screen_rect.width, screen_rect.height))
         self.cover.fill(0)
         self.cover.set_alpha(200)
 
-        #game specific content
+        # game specific content
         self.bg_color = (0, 0, 0)
         self.pause = False
         self.score = [0, 0]
@@ -55,24 +54,39 @@ class Classic(tools.States):
         if self.num_players == 1:
             self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
 
-        self.paddle_right.update_desired_y(
-            (screen_rect.bottom - screen_rect.top) / 2)
+        self.paddle_right.update_desired_y((screen_rect.bottom - screen_rect.top) / 2)
+        self.paddle_left.update_desired_y((screen_rect.bottom - screen_rect.top) / 2)
 
-        self.paddle_left.update_desired_y(
-            (screen_rect.bottom - screen_rect.top) / 2)
+        # Audio setup
+        sample_rate = 44100
+        buffer_size = 1024
+        pitch_tolerance = 0.8
+        min_confidence = 0.0
 
-        (self.audio_input_index1,
-         self.audio_input_index2) = audio_input.initialize_child_process(
-             audio_input_index1, audio_input_index2, min_confidence_arg=MIN_PITCH_CONFIDENCE)
+        self.mic_controller_1 = audio_input.MicController(
+            device_name=audio_device_name_1,
+            sample_rate=sample_rate,
+            buffer_size=buffer_size,
+            pitch_tolerance=pitch_tolerance,
+            min_confidence=min_confidence,
+        )
 
-    def process_audio_input(self, device_index):
-        # Process audio input
+        self.mic_controller_2 = None
+        if self.num_players == 2:
+            audio_input.MicController(
+                device_name=audio_device_name_2,
+                sample_rate=sample_rate,
+                buffer_size=buffer_size,
+                pitch_tolerance=pitch_tolerance,
+                min_confidence=min_confidence,
+            )
+
+    def process_audio_input(self, mic_controller):
         # Top is 0, bottom grows larger. Invert the incoming pitch
-        norm_pitch = audio_input.get_normalized_position(device_index)
-        if norm_pitch and norm_pitch > 0:
+        normalized_pitch = mic_controller.get_normalized_position()
+        if normalized_pitch and normalized_pitch > 0:
             max_p = self.screen_rect.bottom
-            abs_pos = (1.0 - norm_pitch) * max_p
-#            print("Mic: ", device_index, ", abs pos: ", abs_pos, ", norm_pitch: ", norm_pitch)
+            abs_pos = (1.0 - normalized_pitch) * max_p
             return abs_pos
 
         return None
@@ -118,19 +132,15 @@ class Classic(tools.States):
         if not self.pause:
             # Update AI
             if self.num_players == 1:
-                self.ai.update(self.ball.rect, self.ball,
-                               self.paddle_left.rect)
+                self.ai.update(self.ball.rect, self.ball, self.paddle_left.rect)
 
-            self.score_text, self.score_rect = self.make_text(
-                '{}:{}'.format(self.score[0], self.score[1]), (255, 255, 255),
-                (self.screen_rect.centerx, 25), 50)
+            self.score_text, self.score_rect = self.make_text('{}:{}'.format(self.score[0], self.score[1]), (255, 255, 255), (self.screen_rect.centerx, 25), 50)
 
             # Keep the paddles inside the screen
             self.paddle_left.update(self.screen_rect)
             self.paddle_right.update(self.screen_rect)
 
-            hit_side = self.ball.update(self.paddle_left.rect,
-                                        self.paddle_right.rect)
+            hit_side = self.ball.update(self.paddle_left.rect, self.paddle_right.rect)
 
             # Adjust score. TODO - Do something interesting on winning
             if hit_side:
@@ -142,11 +152,11 @@ class Classic(tools.States):
             self.movement(keys, time_delta)
 
             if self.num_players == 2:
-                lpos = self.process_audio_input(self.audio_input_index2)
+                lpos = self.process_audio_input(self.mic_controller_2)
                 if lpos:
                     self.paddle_left.update_desired_y(lpos)
 
-            rpos = self.process_audio_input(self.audio_input_index1)
+            rpos = self.process_audio_input(self.mic_controller_1)
             if rpos:
                 self.paddle_right.update_desired_y(rpos)
 
@@ -155,8 +165,7 @@ class Classic(tools.States):
             self.paddle_left.update_pos(time_delta)
 
         else:
-            self.pause_text, self.pause_rect = self.make_text(
-                "PAUSED", (255, 255, 255), self.screen_rect.center, 50)
+            self.pause_text, self.pause_rect = self.make_text("PAUSED", (255, 255, 255), self.screen_rect.center, 50)
         pg.mouse.set_visible(False)
 
         if self.num_players == 1:
@@ -181,7 +190,6 @@ class Classic(tools.States):
     def cleanup(self):
         pg.mixer.music.stop()
         self.background_music.setup(self.background_music_volume)
-        audio_input.cleanup()
 
     def entry(self):
         pg.mixer.music.play()

@@ -6,7 +6,7 @@ import shutil
 import random
 
 def clean_files():
-    '''remove all pyc files and __pycache__ direcetories in subdirectory'''
+    '''remove all pyc files and __pycache__ directories in subdirectory'''
     for root, dirs, files in os.walk('.'):
         for dir in dirs:
             if dir == '__pycache__':

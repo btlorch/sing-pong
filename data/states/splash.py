@@ -16,7 +16,7 @@ class Splash(tools.States):
         self.alpha_step = 3
 
         self.image = pg.image.load('resources/graphics/splash_page.png').convert_alpha()
-        text = ["Don't look at this screen", "Don't look"]
+        text = ["Ackermann Telegames", "presents"]
         self.rendered_text = self.make_text_list("Fixedsys500c", 50, text,
                                                  (200, 230, 0), 320, 50)
 

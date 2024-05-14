@@ -3,10 +3,11 @@ import pygame as pg
 from .states import classic, menu, mode, options, controls, audio, ghost, splash, keybinding, getkey
 
 
-class Control():
-    def __init__(self, fullscreen, difficulty, size, audio_input_index1,
-                 audio_input_index2):
-        pg.mixer.pre_init(44100, -16, 1, 512)
+class Control(object):
+    def __init__(self, fullscreen, difficulty, size, audio_device_name_1, audio_device_name_2):
+        sample_rate = 44100
+        buffer_size = 1024
+        pg.mixer.pre_init(frequency=sample_rate, size=-16, channels=1, buffer=buffer_size)
         pg.init()
         pg.display.set_caption("Pong")
         self.screensize = (int(size[0]), int(size[1]))
@@ -24,7 +25,7 @@ class Control():
         self.done = False
         self.state_dict = {
             "MENU": menu.Menu(self.screen_rect),
-            "CLASSIC": classic.Classic(self.screen_rect, difficulty, audio_input_index1, audio_input_index2),
+            "CLASSIC": classic.Classic(self.screen_rect, difficulty, audio_device_name_1, audio_device_name_2),
             # "CONTROLS": controls.Controls(self.screen_rect),
             "MODE": mode.Mode(self.screen_rect),
             # "OPTIONS": options.Options(self.screen_rect),
@@ -57,6 +58,7 @@ class Control():
         while not self.done:
             if self.state.quit:
                 self.done = True
+
             time_delta = float(self.clock.get_time()) / 1000
             self.event_loop()
             self.change_state()
