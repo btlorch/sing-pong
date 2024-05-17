@@ -43,13 +43,25 @@ class Classic(tools.States):
 
         self.ball = ball_.Ball(self.screen_rect, 10, 10, (0, 255, 0))
 
-        self.paddle_left = paddle.Paddle(padding, paddle_y, paddle_width,
-                                         paddle_height, paddle_left_speed,
-                                         (150, 150, 150))
+        self.paddle_left = paddle.Paddle(
+            "left",
+            padding,
+            paddle_y,
+            paddle_width,
+            paddle_height,
+            paddle_left_speed,
+            (150, 150, 150)
+        )
 
-        self.paddle_right = paddle.Paddle(pad_right, paddle_y, paddle_width,
-                                          paddle_height, paddle_speed,
-                                          (150, 150, 150))
+        self.paddle_right = paddle.Paddle(
+            "right",
+            pad_right,
+            paddle_y,
+            paddle_width,
+            paddle_height,
+            paddle_speed,
+            (150, 150, 150)
+        )
 
         if self.num_players == 1:
             self.ai = AI.AIPaddle(self.screen_rect, self.ball.rect, difficulty)
@@ -73,7 +85,7 @@ class Classic(tools.States):
 
         self.mic_controller_2 = None
         if self.num_players == 2:
-            audio_input.MicController(
+            self.mic_controller_2 = audio_input.MicController(
                 device_name=audio_device_name_2,
                 sample_rate=sample_rate,
                 buffer_size=buffer_size,
@@ -84,9 +96,13 @@ class Classic(tools.States):
     def process_audio_input(self, mic_controller):
         # Top is 0, bottom grows larger. Invert the incoming pitch
         normalized_pitch = mic_controller.get_normalized_position()
-        if normalized_pitch and normalized_pitch > 0:
-            max_p = self.screen_rect.bottom
-            abs_pos = (1.0 - normalized_pitch) * max_p
+        if normalized_pitch is not None and normalized_pitch >= 0:
+            # top coordinate is 0, bottom coordinate is self.screen_rect.bottom
+            max_pos = self.screen_rect.bottom
+
+            # Invert position: 1 means top (y-coordinate is 0), 0 means bottom (y-coordinate is screen height)
+            inverted_pitch = (1.0 - normalized_pitch)
+            abs_pos = inverted_pitch * max_pos
             return abs_pos
 
         return None
@@ -159,6 +175,7 @@ class Classic(tools.States):
             rpos = self.process_audio_input(self.mic_controller_1)
             if rpos:
                 self.paddle_right.update_desired_y(rpos)
+                # print(f"rpos: abs = {rpos}, rel = {rpos / self.screen_rect.bottom}")
 
             # Update the paddles positions
             self.paddle_right.update_pos(time_delta)

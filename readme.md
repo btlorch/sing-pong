@@ -1,6 +1,20 @@
 Sing Pong
 =========
 
+Setting up the Singstar Microphones: https://askubuntu.com/questions/1179356/split-stereo-usb-audio-interface-line-in-to-two-mono-devices
+
+Restart pulseaudio  `systemctl --user restart pulseaudio.socket`.
+
+- pitch detection methods: default is *yinfft*.
+- silence: level threshold under which pitch should be ignored, in dB
+- tolerance: change *yin* or *yinfft* tolerance threshold, default is 0.15 for yin and 0.85 for yinfft.
+- pitch unit: "Hz", "midi", "cent", or "bin"
+- 
+
+
+Original README
+===============
+
 Based on https://github.com/metulburr/pong
 Tested only on Ubuntu Linux. Should work for macOS, maybe Windows.
 
@@ -50,3 +64,5 @@ Tested only on Ubuntu Linux. Should work for macOS, maybe Windows.
 ## Notes
 
 * Tested only on Ubuntu Linux. Should work for macOS, maybe Windows.
+
+

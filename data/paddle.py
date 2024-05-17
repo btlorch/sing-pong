@@ -2,7 +2,8 @@ import pygame as pg
 
 
 class Paddle:
-    def __init__(self, x, y, width, height, speed, color=(255, 255, 255)):
+    def __init__(self, name, x, y, width, height, speed, color=(255, 255, 255)):
+        self.name = name
         self.surface = pg.Surface([width, height])
         self.rect = self.surface.get_rect()
         self.rect.x = x
@@ -30,8 +31,13 @@ class Paddle:
 
     def update_pos(self, time_delta):
         delta = self.desired_y - self.rect[1]
-        if abs(delta) <= 5:
+
+        # if self.name == "right":
+        #     print(f"desired y: {self.desired_y}, self.rect[1]: {self.rect[1]}, delta: {delta}")
+
+        if abs(delta) <= 3:
             return
+
         distance = 4
         direction = distance if delta >= 0 else -1 * distance
         self._move(0, direction, time_delta)

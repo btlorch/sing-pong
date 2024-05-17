@@ -38,12 +38,14 @@ parser.add_argument(
     '-1',
     '--audio_device_name_1',
     type=str,
+    default="Sony SingStar USBMIC Analog Stereo (2)",
     help="Audio device name of right player")
 
 parser.add_argument(
     '-2',
     '--audio_device_name_2',
     type=str,
+    # default="Sony SingStar USBMIC Analog Stereo (3)",
     help="(Optional): Audio device name of left player")
 
 args = vars(parser.parse_args())
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         audio_device_name_1 = args["audio_device_name_1"]
         print('audio device name of right player: ', audio_device_name_1)
 
-    if args["audio_device_name_1"]:
+    if args["audio_device_name_2"]:
         if not audio_device_name_1:
             print("Cannot initiate second audio input unless first has been specified.")
             exit(-1)

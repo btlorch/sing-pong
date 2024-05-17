@@ -23,6 +23,7 @@ class PitchDetector(object):
         self.pitch_o = aubio.pitch(method="yinfft", buf_size=4096, hop_size=hop_size, samplerate=sample_rate)
         self.pitch_o.set_unit("midi")
         self.pitch_o.set_tolerance(pitch_tolerance)
+        self.pitch_o.set_silence(-20)
 
     def get_pitch_confidence_tuple(self, signal) -> Tuple[float, float]:
         pitches = self.pitch_o(signal)
@@ -48,7 +49,7 @@ class MicController(object):
         self.max_pitch = 60.0
 
         self.pitch_cache_list = llist.dllist()
-        self.cache_size_limit = 5
+        self.cache_size_limit = 3
 
         def callback(audio_device, audio_memory_view):
             sound_chunk = bytes(audio_memory_view)
@@ -77,18 +78,21 @@ class MicController(object):
         raw_pitch = self.pitch.value
         raw_confidence = self.confidence.value
 
-        if raw_pitch < self.min_pitch * 0.8:
-            # Too small, ignore
-            print("Pitch too low")
+        if raw_pitch <= 0:
             pass
 
-        elif raw_pitch > self.max_pitch * 1.2:
+        elif raw_pitch < 20:
+            # Too small, ignore
+            # print("Pitch too low")
+            pass
+
+        elif raw_pitch > 90:
             # Too high, ignore
-            print("Pitch too high")
+            # print("Pitch too high")
             pass
 
         elif raw_confidence < self.min_confidence:
-            print("Low confidence")
+            # print("Low confidence")
             pass
 
         else:
@@ -102,7 +106,7 @@ class MicController(object):
         avg_raw_pitch = sum(self.pitch_cache_list) / self.pitch_cache_list.size
         norm_pitch = (avg_raw_pitch - self.min_pitch) / (self.max_pitch - self.min_pitch)
 
-        print(f"Raw pitch: {raw_pitch}, normalized mean pitch: {norm_pitch}")
-        norm_pitch = np.clip(norm_pitch, 0, 1)
+        clipped_norm_pitch = np.clip(norm_pitch, 0, 1)
+        print(f"[{self.device_name}] raw pitch: {raw_pitch}, normalized mean pitch: {norm_pitch}, clipped pitch: {clipped_norm_pitch}")
 
-        return norm_pitch
+        return clipped_norm_pitch
